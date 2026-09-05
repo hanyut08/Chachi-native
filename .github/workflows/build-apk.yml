@@ -1,0 +1,54 @@
+name: Build Chachi APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Show Flutter version
+        run: flutter --version
+
+      - name: Create a fresh Flutter Android scaffold
+        run: flutter create --platforms=android --org com.chachi --project-name chachi scaffold
+
+      - name: Overlay Chachi's code onto the fresh scaffold
+        run: |
+          rm -rf scaffold/lib
+          cp -r lib scaffold/lib
+          cp pubspec.yaml scaffold/pubspec.yaml
+          mkdir -p scaffold/assets/sounds scaffold/assets/icon
+          cp assets/sounds/chime.wav scaffold/assets/sounds/chime.wav
+          cp assets/icon/icon.png scaffold/assets/icon/icon.png
+          mkdir -p scaffold/android/app/src/main/res/raw
+          cp assets/sounds/chime.wav scaffold/android/app/src/main/res/raw/chime.wav
+          cp android/AndroidManifest.xml scaffold/android/app/src/main/AndroidManifest.xml
+
+      - name: Get packages
+        working-directory: scaffold
+        run: flutter pub get
+
+      - name: Generate launcher icons
+        working-directory: scaffold
+        run: dart run flutter_launcher_icons
+
+      - name: Build release APK
+        working-directory: scaffold
+        run: flutter build apk --release
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chachi-apk
+          path: scaffold/build/app/outputs/flutter-apk/app-release.apk
